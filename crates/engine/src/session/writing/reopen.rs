@@ -48,6 +48,63 @@ impl Session {
         Ok(serde_json::json!({ "compose": id }))
     }
 
+    /// A new message made of message `key` (the open one when none is named), to change and send
+    /// again: its recipients, subject, text and files as they are, from the account it was
+    /// written from when that's one here. A message received, one sent before, or a message
+    /// file opened to look at (`.eml`) all can be. The original is left as it is: the new one
+    /// is no draft of it, answers nothing and gets a Message-ID of its own.
+    pub fn edit_as_new(&mut self, key: Option<MessageKey>) -> CmdResult {
+        let key = key.or_else(|| self.reading.as_ref().map(|r| r.key.clone())).ok_or_else(|| CmdError::Disabled("open a message first".into()))?;
+        let raw = self.readable_raw(&key).ok_or_else(|| CmdError::Disabled("the message is still downloading".into()))?;
+        // Still encrypted: what encrypts it would be what's edited.
+        if is_sealed(&raw) {
+            return Err(CmdError::Disabled("the message is encrypted: it opens once it has been decrypted".into()));
+        }
+        // From the account whose address it's from; else, as a message file is in none, the
+        // one on screen, and its own account for other mail. One that can send, when that
+        // account can't (a data file's).
+        let written_from = self.account_written_from(&raw);
+        let base = match written_from {
+            Some(a) => a,
+            None if key.account == OPENED_FILE => {
+                self.current_account().map(|a| a.config.id.clone()).ok_or_else(|| CmdError::Disabled("add an account first".into()))?
+            }
+            None => key.account.clone(),
+        };
+        let account = self.sending_account(base);
+        let mut c = self.compose_from_saved(&account, &key, &raw)?;
+        // A message of its own: not the original's draft (saving it would replace that), not an
+        // answer to what the original answered, and with a Message-ID of its own when it goes.
+        c.draft = None;
+        c.draft_id.clear();
+        c.source = None;
+        c.mode = None;
+        c.in_reply_to.clear();
+        c.references.clear();
+        c.window = self.prefs.new_mail_window;
+        let id = c.id;
+        self.open_compose(c);
+        self.made_now(id);
+        Ok(serde_json::json!({ "compose": id }))
+    }
+
+    /// The account whose address (its own or another of its addresses) message `raw` is from,
+    /// when there's one: of several, one that can send first.
+    fn account_written_from(&self, raw: &[u8]) -> Option<String> {
+        let from = mime::parse(raw)?.from.email;
+        let from = from.trim();
+        if from.is_empty() {
+            return None;
+        }
+        let mine: Vec<&str> = self
+            .accounts
+            .iter()
+            .filter(|a| a.config.addresses().any(|own| own.trim().eq_ignore_ascii_case(from)))
+            .map(|a| a.config.id.as_str())
+            .collect();
+        mine.iter().find(|id| self.send_block(id).is_none()).or_else(|| mine.first()).map(|id| (*id).to_string())
+    }
+
     /// Message `raw`, kept at `key` (its pictures are shown from there), as one being written
     /// from `account`.
     pub(in crate::session) fn compose_from_saved(&mut self, account: &str, key: &MessageKey, raw: &[u8]) -> Result<Compose, CmdError> {

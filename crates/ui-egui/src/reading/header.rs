@@ -318,6 +318,10 @@ fn action_bar(s: &Session, st: &UiState, ui: &mut Ui, o: &Open<'_>, acts: &mut V
                     acts.push(Action::Run("mail.forwardAsAttachment", json!({})));
                     ui.close();
                 }
+                if ui.button(tl!("Edit as new message")).clicked() {
+                    acts.push(Action::Run("mail.editAsNew", json!({"key": r.key.to_id()})));
+                    ui.close();
+                }
                 if ui.button(tl!("View message source")).clicked() {
                     acts.push(Action::Run("message.source", json!({"key": r.key.to_id()})));
                     ui.close();

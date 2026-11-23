@@ -410,6 +410,7 @@ fn a_mail_file_is_opened_to_be_looked_at() {
     // who may be anyone.
     for want in [
         "Invoice – Message",
+        "Edit as new message",
         "Print",
         "Ben",
         "update.exe",
@@ -443,6 +444,14 @@ fn a_mail_file_is_opened_to_be_looked_at() {
     let pdf = dir.join("invoice.pdf");
     a.act(crate::Action::InWindow(key.clone(), Box::new(crate::Action::Run("message.exportPdf", json!({"path": pdf.to_string_lossy()})))));
     assert!(std::fs::read(&pdf).is_ok_and(|b| b.starts_with(b"%PDF")), "{:?}", a.session.notices);
+    // Edited as a new message: to send it (one prepared elsewhere), with its file, the file's
+    // window left open.
+    a.act(crate::Action::Run("mail.editAsNew", json!({"key": key.to_id()})));
+    let c = a.session.compose.clone().unwrap_or_else(|| panic!("{:?}", a.session.notices));
+    assert_eq!((c.subject.as_str(), c.attachments.len()), ("Invoice", 1));
+    assert!(c.to.contains("ana@x.example") && c.cc.contains("ben@x.example"), "{} / {}", c.to, c.cc);
+    assert!(a.session.opened_file_name(&key).is_some());
+    a.act(crate::Action::Run("compose.discard", json!({})));
     // Closed: gone, file and all.
     a.act(crate::Action::Run("message.closeWindow", json!({"key": key.to_id()})));
     assert!(a.session.windows.is_empty() && a.session.opened_file_name(&key).is_none());

@@ -651,6 +651,12 @@ fn more_and_close(ui: &mut Ui, s: &Session, st: &UiState, key: &MessageKey, acts
     let t = &st.tokens;
     let more = widgets::more_pill(ui, "More actions", t);
     egui::Popup::menu(&more).show(|ui| {
+        // (An opened file's window has it on its toolbar.)
+        if s.opened_file_name(key).is_none() && ui.button(tl!("Edit as new message")).clicked() {
+            acts.push(Action::Run("mail.editAsNew", json!({"key": key.to_id()})));
+            acts.push(Action::FocusMain);
+            ui.close();
+        }
         if ui.button(tl!("View message source")).clicked() {
             acts.push(Action::Run("message.source", json!({"key": key.to_id()})));
             ui.close();
@@ -669,11 +675,17 @@ fn more_and_close(ui: &mut Ui, s: &Session, st: &UiState, key: &MessageKey, acts
 }
 
 /// The toolbar of an opened message file's window (issue #56): what looks at it or keeps a copy
-/// of it. It's in no folder and no account, so nothing answers, files or marks it.
+/// of it. It's in no folder and no account, so nothing answers, files or marks it; it can be
+/// edited as a new message, to send (a message prepared elsewhere and saved as a file).
 fn opened_file_toolbar(ui: &mut Ui, s: &Session, st: &UiState, key: &MessageKey, acts: &mut Vec<Action>) {
     let t = &st.tokens;
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
+        if widgets::tool_button(ui, Icon::NewMail, "Edit as new message", t, true).clicked() {
+            acts.push(Action::Run("mail.editAsNew", json!({"key": key.to_id()})));
+            acts.push(Action::FocusMain);
+        }
+        widgets::group_sep(ui, t);
         if widgets::tool_button(ui, Icon::Print, "Print", t, true).on_hover_text(tl!("Open as a PDF to print")).clicked() {
             acts.push(Action::Print);
         }

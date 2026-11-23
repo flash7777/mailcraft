@@ -56,6 +56,8 @@ pub(super) fn commands() -> Vec<CommandSpec> {
             s.edit_draft(&key)
         })
         .params(r#"{"key": string (a message in Drafts)}"#),
+        CommandSpec::new("mail.editAsNew", "Edit as new message", "Reading pane › More", |s, v| s.edit_as_new(parse_key(v)))
+            .params(r#"{"key"?: string (a message, or a message file opened; else the one open)}"#),
         CommandSpec::new("compose.removeAttachment", "Remove attachment", "Message › Insert", remove_attachment).params(r#"{"index": number}"#).when(has_compose),
         CommandSpec::new("compose.send", "Send", "Message", |s, v| {
             s.send_compose(p::bool(v, "allowEmptySubject").unwrap_or(false), p::bool(v, "checked").unwrap_or(false))

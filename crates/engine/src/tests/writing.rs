@@ -4,6 +4,7 @@ use super::*;
 
 mod check_names;
 mod drafts;
+mod edit_as_new;
 mod files;
 mod fonts;
 mod identities;

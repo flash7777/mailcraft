@@ -458,12 +458,12 @@ fn how_much_mail_is_kept_is_a_setting() {
     s.jobs_push_for_test(Job::SyncAll { account: "sample".into() });
     s.run("account.keepMail", &json!({"messages": 0, "offline": 200})).unwrap();
     let jobs = s.take_jobs();
-    assert!(matches!(jobs.first(), Some(Job::SetSync { messages: 0, offline: 200 })), "{jobs:?}");
+    assert!(matches!(jobs.first(), Some(Job::SetSync { messages: 0, months: 0, offline: 200 })), "{jobs:?}");
     s.run("account.keepMail", &json!({"messages": 5000})).unwrap();
     s.run("account.keepMail", &json!({"messages": 20000})).unwrap();
     let jobs = s.take_jobs();
     assert_eq!(jobs.iter().filter(|j| matches!(j, Job::SetSync { .. })).count(), 1, "the last one only");
-    assert!(matches!(jobs.first(), Some(Job::SetSync { messages: 20000, offline: 200 })));
+    assert!(matches!(jobs.first(), Some(Job::SetSync { messages: 20000, months: 0, offline: 200 })));
 }
 
 /// Looking through a big mailbox (the address book reads every folder) keeps only so many

@@ -91,6 +91,26 @@ pub fn internal_date(t: i64) -> Option<String> {
     Some(format!("{d:02}-{month}-{y:04} {:02}:{:02}:{:02} +0000", secs / 3600, secs / 60 % 60, secs % 60))
 }
 
+/// The day `months` calendar months before Unix time `now` (UTC), as a `SEARCH SINCE` date
+/// (`14-Oct-2025`, RFC 3501 §6.4.4); a day past the earlier month's end becomes its last
+/// (31 March less a month is 28 or 29 February). None for no months, or a day before 1970.
+pub fn months_before(now: i64, months: u32) -> Option<String> {
+    const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    if months == 0 {
+        return None;
+    }
+    let (year, month, day) = mailcraft_model::dates::civil_from_days(now.div_euclid(86_400));
+    // Months counted from year 0: the earlier month's year and number fall out of a division.
+    let counted = year * 12 + i64::from(month) - 1 - i64::from(months);
+    let (earlier_year, earlier_month) = (counted.div_euclid(12), u32::try_from(counted.rem_euclid(12)).ok()? + 1);
+    if earlier_year < 1970 {
+        return None;
+    }
+    let earlier_day = i64::from(day).min(mailcraft_model::dates::month_len(earlier_year, earlier_month));
+    let name = MONTHS.get(usize::try_from(earlier_month - 1).ok()?)?;
+    Some(format!("{earlier_day}-{name}-{earlier_year:04}"))
+}
+
 /// Parse an INTERNALDATE (`14-Oct-2026 09:30:00 +0200`) to Unix seconds. The server's numbers
 /// are digits only, the year from 1 to 9999 (RFC 3501 gives it four digits).
 pub fn parse_internal_date(s: &str) -> Option<i64> {

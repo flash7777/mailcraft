@@ -79,7 +79,7 @@ pub(crate) fn search_the_server_past_the_window(name: &str, account: mailcraft_m
             other => panic!("{q}: {other:?}"),
         }
     };
-    pool.submit(Job::SetSync { messages: 10, offline: 0 });
+    pool.submit(Job::SetSync { messages: 10, months: 0, offline: 0 });
     pool.submit(Job::Start { account, password: Some(Secret(secret.into())) });
     until(&pool, "online", online);
     events_until(&pool, "ten in the Inbox", |_| subjects().len() >= 10);

@@ -709,8 +709,13 @@ impl Worker {
         self.working(true);
         self.status(SyncStatus::Syncing { folder: path.to_string() });
         // A folder asked to keep more keeps them (the API servers keep only the newest window).
-        let window = self.windows.get(path).copied().unwrap_or(0).max(self.opts.window);
-        let (store, opts, id, seen) = (self.store.clone(), SyncOptions { window, ..self.opts }, self.id(), self.removals);
+        // Kept by months, a folder asked to show more goes by its own window, past the months.
+        let asked_more = if self.opts.keep_months > 0 { self.windows.get(path).copied() } else { None };
+        let opts = match asked_more {
+            Some(window) => SyncOptions { window, keep_months: 0, ..self.opts },
+            None => SyncOptions { window: self.windows.get(path).copied().unwrap_or(0).max(self.opts.window), ..self.opts },
+        };
+        let (store, id, seen) = (self.store.clone(), self.id(), self.removals);
         // Nothing of it written once its account is removed, the sync on its way (found in review:
         // its folder came back with the Inbox in it, over IMAP, JMAP, Graph, Exchange and POP).
         let result = match self.conn.as_mut() {

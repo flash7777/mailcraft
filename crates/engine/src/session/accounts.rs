@@ -656,7 +656,7 @@ impl Session {
     /// start with it).
     pub fn apply_sync_prefs(&mut self) {
         self.jobs.retain(|j| !matches!(j, Job::SetSync { .. }));
-        self.jobs.insert(0, Job::SetSync { messages: self.prefs.keep_messages, offline: self.prefs.keep_offline });
+        self.jobs.insert(0, Job::SetSync { messages: self.prefs.keep_messages, months: 0, offline: self.prefs.keep_offline });
     }
 
     /// Work offline, or connect again: every account's connection closes (changes, sent mail and

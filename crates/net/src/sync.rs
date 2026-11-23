@@ -127,7 +127,7 @@ pub fn sync_folder_as<S: Read + Write>(
         apply_flag_changes(&mut st, changed, &mut report);
         drop_gone(store, (account, seen), &mut st, |uid| !vanished.iter().any(|r| r.contains(&uid)), &mut report)?;
         new_mail(c, &mut st, account, folder, known_max, &mut report)?;
-        keep_more(c, &mut st, account, folder, opts.window, &mut report)?;
+        keep_more(c, &mut st, account, folder, opts, &mut report)?;
     } else {
         // 3 + 4: changes to what we have (before adding new mail, so only cached UIDs are asked).
         if known_max > 0 {
@@ -149,14 +149,14 @@ pub fn sync_folder_as<S: Read + Write>(
 
         // 2: new mail.
         if st.uid_next == 0 && known_max == 0 {
-            let all = c.uid_search("ALL")?;
+            let all = c.uid_search(&kept_keys(opts, unix_now()))?;
             let skip = all.len().saturating_sub(opts.window);
             let first: Vec<u32> = all.into_iter().skip(skip).collect();
             fetch_headers(c, &mut st, account, folder, &first, &mut report)?;
-            st.window = opts.window;
+            st.window = window_after(&st, opts);
         } else {
             new_mail(c, &mut st, account, folder, known_max, &mut report)?;
-            keep_more(c, &mut st, account, folder, opts.window, &mut report)?;
+            keep_more(c, &mut st, account, folder, opts, &mut report)?;
         }
     }
 
@@ -172,6 +172,28 @@ pub fn sync_folder_as<S: Read + Write>(
     report.total = info.exists;
     report.unread = if info.exists == 0 { 0 } else { u32::try_from(c.uid_search("UNSEEN")?.len()).unwrap_or(u32::MAX) };
     Ok(report)
+}
+
+/// The `UID SEARCH` keys of the messages a folder keeps: every message, or with
+/// [`SyncOptions::keep_months`] those the server received since that many months before `now`
+/// (`SINCE` is the INTERNALDATE's day, RFC 3501 §6.4.4).
+fn kept_keys(opts: &SyncOptions, now: i64) -> String {
+    match crate::imap::months_before(now, opts.keep_months) {
+        Some(day) => format!("SINCE {day}"),
+        None => "ALL".into(),
+    }
+}
+
+/// The folder's window once synced. Kept by months, it's what the folder holds, so that a later
+/// sync asks the server again what the months now cover (they move on; more months may be asked
+/// for) and Show more, a window past it, brings older mail.
+fn window_after(st: &FolderState, opts: &SyncOptions) -> usize {
+    if opts.keep_months > 0 { st.messages.len() } else { opts.window }
+}
+
+/// The time now, in Unix seconds (0 if the clock is before 1970).
+fn unix_now() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).ok().and_then(|elapsed| i64::try_from(elapsed.as_secs()).ok()).unwrap_or(0)
 }
 
 /// The lowest and highest UID a folder's list holds; `(0, 0)` when it's empty.
@@ -435,18 +457,19 @@ fn keep_more<S: Read + Write>(
     st: &mut FolderState,
     account: &str,
     folder: &str,
-    window: usize,
+    opts: &SyncOptions,
     report: &mut SyncReport,
 ) -> Result<()> {
+    let window = opts.window;
     if window <= st.window || st.messages.len() >= window {
         return Ok(());
     }
-    let all = c.uid_search("ALL")?;
+    let all = c.uid_search(&kept_keys(opts, unix_now()))?;
     let want = window - st.messages.len();
     let kept = kept_numbers(st);
     let take: Vec<u32> = all.iter().rev().filter(|u| !kept.contains(*u)).take(want).copied().collect();
     fetch_headers(c, st, account, folder, &take, report)?;
-    st.window = window;
+    st.window = window_after(st, opts);
     Ok(())
 }
 

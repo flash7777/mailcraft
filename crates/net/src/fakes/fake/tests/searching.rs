@@ -243,7 +243,7 @@ fn a_server_search_stops_when_its_no_longer_wanted() {
     let store = store("search-stop");
     crate::fakes::fake_dav::looked_for_today(&store, "a1");
     let mut pool = crate::worker::Pool::new(store.clone(), std::sync::Arc::new(crate::worker::MemoryCredentials::default()));
-    pool.submit(Job::SetSync { messages: 10, offline: 0 });
+    pool.submit(Job::SetSync { messages: 10, months: 0, offline: 0 });
     let account = imap_account(port, 1);
     pool.submit(Job::Start { account, password: Some(Secret("pw".into())) });
     until(&pool, "online", |e| matches!(e, Event::Status { status: SyncStatus::Online { .. }, .. }));
@@ -295,7 +295,7 @@ fn show_more_and_search(caps: &'static str) {
     let store = store(if caps.contains("QRESYNC") { "worker-more-qresync" } else { "worker-more" });
     crate::fakes::fake_dav::looked_for_today(&store, "a1");
     let mut pool = crate::worker::Pool::new(store.clone(), std::sync::Arc::new(crate::worker::MemoryCredentials::default()));
-    pool.submit(Job::SetSync { messages: 10, offline: 0 });
+    pool.submit(Job::SetSync { messages: 10, months: 0, offline: 0 });
     let account = imap_account(port, 1);
     pool.submit(Job::Start { account, password: Some(Secret("pw".into())) });
     until(&pool, "online", |e| matches!(e, Event::Status { status: SyncStatus::Online { .. }, .. }));

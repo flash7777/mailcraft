@@ -64,7 +64,7 @@ impl Pool {
                 self.submit(if keep { Job::KeepDraft { account, raw, folder, replaces } } else { Job::SaveDraft { account, raw, folder, replaces } });
             }
             Job::ExportPst { account, path, name, follow_up } => self.export_pst(account, path, name, follow_up),
-            Job::SetSync { messages, offline } => self.set_sync(messages, offline),
+            Job::SetSync { messages, months, offline } => self.set_sync(messages, months, offline),
             Job::WorkOffline { on } => self.work_offline(on),
             Job::Start { account, password } if self.offline => self.start_when_online(account, password),
             // Looking only when asked (issue #104): not signed in until something is (one set so
@@ -243,9 +243,14 @@ impl Pool {
     }
 
     /// New sync settings, from Options: connected accounts start again with them (a rare change).
-    fn set_sync(&mut self, messages: u32, offline: u32) {
-        let opts = SyncOptions { window: if messages == 0 { usize::MAX } else { messages as usize }, prefetch: offline as usize, ..self.opts };
-        if opts.window != self.opts.window || opts.prefetch != self.opts.prefetch {
+    fn set_sync(&mut self, messages: u32, months: u32, offline: u32) {
+        let opts = SyncOptions {
+            window: if messages == 0 { usize::MAX } else { messages as usize },
+            prefetch: offline as usize,
+            keep_months: months,
+            ..self.opts
+        };
+        if opts.window != self.opts.window || opts.prefetch != self.opts.prefetch || opts.keep_months != self.opts.keep_months {
             self.opts = opts;
             let running: Vec<AccountConfig> = self.workers.keys().filter_map(|id| self.configs.get(id).cloned()).collect();
             for c in running {

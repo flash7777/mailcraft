@@ -1,4 +1,5 @@
 use super::*;
+use mailcraft_model::dates::days_from_civil;
 
 /// A canned server: reads are served from `input`; writes are recorded.
 pub(crate) struct Script {
@@ -40,6 +41,15 @@ fn sets_and_dates() {
     assert_eq!(parse_internal_date("14-Oct-2026 09:30:00 +0200"), Some(1_791_963_000));
     assert_eq!(parse_internal_date(" 4-Jan-1970 00:00:00 -0100"), Some(3 * 86_400 + 3600));
     assert_eq!(parse_internal_date("junk"), None);
+    // 2026-11-23 12:00 UTC, as SEARCH SINCE days: whole months back, the month's end kept.
+    let now = days_from_civil(2026, 11, 23) * 86_400 + 12 * 3600;
+    assert_eq!(months_before(now, 0), None);
+    assert_eq!(months_before(now, 1).as_deref(), Some("23-Oct-2026"));
+    assert_eq!(months_before(now, 11).as_deref(), Some("23-Dec-2025"));
+    assert_eq!(months_before(now, 12).as_deref(), Some("23-Nov-2025"));
+    assert_eq!(months_before(days_from_civil(2024, 3, 31) * 86_400, 1).as_deref(), Some("29-Feb-2024"));
+    assert_eq!(months_before(days_from_civil(2025, 3, 31) * 86_400, 1).as_deref(), Some("28-Feb-2025"));
+    assert_eq!(months_before(now, 12 * 57), None, "before 1970");
     assert_eq!(parse_internal_date("99-Oct-2026 09:30:00 +0200"), None);
     assert_eq!(parse_internal_date("31-Dec-9999 23:59:59 +0000"), Some(253_402_300_799));
     assert_eq!(parse_internal_date("01-Jan-0001 00:00:00 +0000"), Some(-62_135_596_800));

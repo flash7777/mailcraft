@@ -35,7 +35,9 @@ impl Worker {
             }
             Job::MoreMail { folder, more, .. } => {
                 let kept = self.store.load_folder(&self.acc.id, &folder).map(|f| f.messages.len()).unwrap_or(0);
-                let now = self.windows.get(&folder).copied().unwrap_or(0).max(self.opts.window).max(kept);
+                // Kept by months, more is counted from what the folder holds (its window is all of it).
+                let base = if self.opts.keep_months > 0 { 0 } else { self.opts.window };
+                let now = self.windows.get(&folder).copied().unwrap_or(0).max(base).max(kept);
                 self.windows.insert(folder.clone(), now.saturating_add(more as usize).min(1_000_000));
                 let windows = &self.windows;
                 if let Some(Err(e)) =

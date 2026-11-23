@@ -62,6 +62,7 @@ pub(super) fn search_matches(m: &Msg, seq: u32, keys: &[String], max: u32, exist
             "TO" => (header("to").contains(&arg), 2),
             "HEADER" => (header(&arg).contains(&keys.get(i + 2).map(|v| v.to_lowercase()).unwrap_or_default()), 3),
             "KEYWORD" => (m.flags.iter().any(|f| f.eq_ignore_ascii_case(&arg)), 2),
+            "SINCE" => (received_since(m, keys.get(i + 1).map(String::as_str).unwrap_or_default()), 2),
             set if set.starts_with(|c: char| c.is_ascii_digit() || c == '*') => (in_set(seq, set, exists), 1),
             _ => (false, 1),
         };
@@ -72,6 +73,14 @@ pub(super) fn search_matches(m: &Msg, seq: u32, keys: &[String], max: u32, exist
         i += used;
     }
     true
+}
+
+/// `SINCE day` (`1-Jan-2026`): received on that day or later. The fake's day a message came in
+/// is its `Date:` header's (a real server goes by its INTERNALDATE); a day it can't read matches none.
+fn received_since(m: &Msg, day: &str) -> bool {
+    let Some(since) = crate::imap::parse_internal_date(&format!("{day} 00:00:00 +0000")) else { return false };
+    let header_date = mailcraft_mime::summary_from_header(&m.raw, Default::default(), Default::default(), 0, 0).date;
+    header_date > 0 && header_date.div_euclid(86_400) >= since.div_euclid(86_400)
 }
 
 pub(super) fn in_set(uid: u32, set: &str, max: u32) -> bool {

@@ -124,11 +124,15 @@ pub struct SyncOptions {
     pub prefetch: usize,
     /// Sources larger than this are only downloaded when opened.
     pub prefetch_max_bytes: u32,
+    /// Only mail the server received in the last this many months comes in with a folder's first
+    /// sync (like Outlook's "Mail to keep offline: 12 months"); 0: no such limit. `window` still
+    /// caps how many. Mail asked for past it (Show more, a search on the server) still comes.
+    pub keep_months: u32,
 }
 
 impl Default for SyncOptions {
     fn default() -> Self {
-        SyncOptions { window: 1000, prefetch: 40, prefetch_max_bytes: 2 << 20 }
+        SyncOptions { window: 1000, prefetch: 40, prefetch_max_bytes: 2 << 20, keep_months: 0 }
     }
 }
 

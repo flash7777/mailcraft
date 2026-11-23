@@ -94,7 +94,7 @@ fn real_imap_server() {
     };
     let store = crate::fake::store("real-imap");
     let mut pool = Pool::new(store.clone(), std::sync::Arc::new(MemoryCredentials::default()));
-    pool.submit(Job::SetSync { messages: 25, offline: 0 });
+    pool.submit(Job::SetSync { messages: 25, months: 0, offline: 0 });
     let account = imap_account("r1", &user, &imap);
     let began = Instant::now();
     pool.submit(Job::Start { account, password: Some(Secret(pass.clone())) });

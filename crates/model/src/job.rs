@@ -140,8 +140,9 @@ pub enum Job {
     /// connect again.
     WorkOffline { on: bool },
     /// How much mail is kept on this computer: the newest `messages` of each folder (0: all of
-    /// them), and the newest `offline` of them downloaded in full ahead of reading.
-    SetSync { messages: u32, offline: u32 },
+    /// them), of those only what came in the last `months` (0: however old), and the newest
+    /// `offline` of them downloaded in full ahead of reading.
+    SetSync { messages: u32, months: u32, offline: u32 },
     /// Read the account's automatic replies from the server.
     GetVacation { account: String },
     /// Change them.
